@@ -1,0 +1,1426 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <link rel+"apple-touch-icon" href ="/path/to/apple-touch-icon.jpg"
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0b0f19">
+    <title>ApexTrade - Professional Paper Trading Simulator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            emerald: '#10b981',
+                            rose: '#f43f5e',
+                            dark: '#0b0f19',
+                            card: '#161e2e',
+                            border: '#1f293d'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0b0f19;
+            color: #f1f5f9;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .glow-emerald {
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #0b0f19;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        .animate-flash-green {
+            animation: flashGreen 0.6s ease-out;
+        }
+        .animate-flash-red {
+            animation: flashRed 0.6s ease-out;
+        }
+        @keyframes flashGreen {
+            0% { background-color: rgba(16, 185, 129, 0.3); }
+            100% { background-color: transparent; }
+        }
+        @keyframes flashRed {
+            0% { background-color: rgba(244, 63, 94, 0.3); }
+            100% { background-color: transparent; }
+        }
+        
+        /* Audio Visualizer Bar Animation */
+        .eq-bar {
+            width: 3px;
+            background-color: #10b981;
+            border-radius: 2px;
+            animation: eqBounce 1.2s ease-in-out infinite alternate;
+        }
+        .eq-bar:nth-child(1) { height: 6px; animation-delay: 0.1s; }
+        .eq-bar:nth-child(2) { height: 14px; animation-delay: 0.3s; }
+        .eq-bar:nth-child(3) { height: 10px; animation-delay: 0.2s; }
+        .eq-bar:nth-child(4) { height: 16px; animation-delay: 0.4s; }
+
+        .eq-paused .eq-bar {
+            animation-play-state: paused;
+            height: 4px !important;
+            background-color: #475569;
+        }
+
+        @keyframes eqBounce {
+            0% { height: 4px; }
+            100% { height: 18px; }
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-24 custom-scrollbar">
+
+    <!-- Top Navigation Bar with Waffle Menu -->
+    <header class="border-b border-slate-800/80 bg-slate-900/95 backdrop-blur-md sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <!-- Brand Logo & Title -->
+            <div class="flex items-center space-x-2.5 sm:space-x-3">
+                <div class="bg-gradient-to-tr from-emerald-600 to-teal-400 p-2 rounded-xl text-white font-black text-lg sm:text-xl shadow-md">
+                    <i data-lucide="trending-up" class="w-5 h-5 sm:w-6 sm:h-6 text-slate-950"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-base sm:text-xl font-black tracking-tight text-white">
+                            ApexTrade
+                        </h1>
+                        <span class="text-[9px] font-extrabold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 tracking-wide uppercase">Paper</span>
+                    </div>
+                    <p class="text-[10px] sm:text-xs text-slate-400 font-medium hidden sm:block">Simulated Bitcoin, Ethereum & US Stock Trading</p>
+                </div>
+            </div>
+
+            <!-- Header Right: Quick Actions & Waffle Menu -->
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <!-- Trader Rank Badge -->
+                <div id="auraBadge" class="hidden sm:flex px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700/60 items-center gap-1 shadow-sm">
+                    <span id="auraText" class="text-emerald-400 font-bold">Trader Status: Gold</span>
+                </div>
+
+                <!-- Add Cash Button -->
+                <button onclick="triggerHaptic(); printMoney(10000);" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs px-3 py-2 rounded-xl shadow-sm active:scale-95 transition-all flex items-center gap-1">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    <span>+$10K</span>
+                </button>
+
+                <!-- WAFFLE MENU BUTTON -->
+                <div class="relative">
+                    <button id="waffleBtn" onclick="triggerHaptic(); toggleWaffleMenu();" title="Open App Menu" class="p-2.5 text-slate-300 hover:text-white bg-slate-800/90 hover:bg-slate-700/80 rounded-xl transition border border-slate-700/60 flex items-center justify-center active:scale-95 shadow-sm">
+                        <i data-lucide="grid" class="w-5 h-5"></i>
+                    </button>
+
+                    <!-- WAFFLE DROPDOWN DRAWER -->
+                    <div id="waffleMenu" class="hidden absolute right-0 mt-2 w-72 sm:w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-4 z-50 space-y-4 backdrop-blur-xl">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+                            <span class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                                <i data-lucide="layout-grid" class="w-4 h-4 text-emerald-400"></i> App Tools
+                            </span>
+                            <button onclick="toggleWaffleMenu()" class="text-slate-500 hover:text-slate-300 text-xs p-1">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <!-- Focus Audio Player Section inside Waffle -->
+                        <div class="bg-slate-950 p-3 rounded-xl border border-slate-800/80 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <i data-lucide="headphones" class="w-4 h-4 text-emerald-400"></i>
+                                    <span class="text-xs font-bold text-white">Focus Audio</span>
+                                </div>
+                                <span id="bgmStatusTag" class="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-800 text-slate-400">OFF</span>
+                            </div>
+                            <p id="currentTrackLabel" class="text-[10px] text-slate-400 truncate">Track: Chill Lo-Fi Focus</p>
+                            
+                            <select id="trackSelect" onchange="changeTrack(this.value)" class="w-full bg-slate-900 border border-slate-800 text-slate-200 text-xs font-semibold rounded-lg px-2 py-1.5 focus:outline-none">
+                                <option value="lofi">🎹 Chill Lo-Fi Focus</option>
+                                <option value="synthwave">🏙️ Synthwave Ambient</option>
+                                <option value="phonk">⚡ Deep Focus Electronic</option>
+                            </select>
+
+                            <div class="flex items-center justify-between pt-1">
+                                <button id="bgmPlayBtn" onclick="triggerHaptic(); toggleBgm();" class="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs px-3 py-1.5 rounded-lg border border-slate-700 transition flex items-center gap-1">
+                                    <i data-lucide="play" class="w-3 h-3"></i>
+                                    <span id="bgmBtnText">Play Audio</span>
+                                </button>
+
+                                <div class="flex items-center space-x-1.5 bg-slate-900 px-2 py-1 rounded-lg border border-slate-800">
+                                    <i data-lucide="volume-1" class="w-3 h-3 text-slate-400"></i>
+                                    <input type="range" id="bgmVolume" min="0" max="0.5" step="0.02" value="0.2" oninput="setBgmVolume(this.value)" class="w-14 h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Toggle SFX & Rank Info -->
+                        <div class="grid grid-cols-2 gap-2 text-xs font-semibold">
+                            <button id="soundToggle" onclick="triggerHaptic(); toggleSound();" class="p-2.5 bg-slate-950 border border-slate-800 hover:border-slate-700 text-slate-300 rounded-xl flex items-center justify-center gap-1.5 transition">
+                                <i data-lucide="volume-2" class="w-4 h-4 text-emerald-400"></i>
+                                <span>SFX Sound</span>
+                            </button>
+
+                            <div class="p-2.5 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-center text-center">
+                                <span id="auraTextMenu" class="text-[11px] font-bold text-emerald-400 truncate">Rank: Gold Tier</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 space-y-4 sm:space-y-6">
+
+        <!-- Stat Cards Summary -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
+            <!-- Total Net Worth -->
+            <div class="bg-slate-900/90 border border-slate-800/80 p-3.5 sm:p-4 rounded-2xl relative overflow-hidden shadow-sm">
+                <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 mb-0.5">Net Worth</p>
+                <h2 id="netWorthDisplay" class="text-lg sm:text-2xl font-black text-white">$100,000.00</h2>
+                <div id="netWorthChange" class="text-[11px] sm:text-xs font-bold text-emerald-400 flex items-center gap-1 mt-0.5">
+                    <i data-lucide="trending-up" class="w-3 h-3"></i>
+                    <span>+$0.00 (0.00%)</span>
+                </div>
+            </div>
+
+            <!-- Free Cash -->
+            <div class="bg-slate-900/90 border border-slate-800/80 p-3.5 sm:p-4 rounded-2xl relative overflow-hidden shadow-sm">
+                <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 mb-0.5">Available Cash</p>
+                <h2 id="cashDisplay" class="text-lg sm:text-2xl font-black text-emerald-400">$100,000.00</h2>
+                <p class="text-[10px] sm:text-xs text-slate-500 mt-0.5 font-medium">Ready to allocate</p>
+            </div>
+
+            <!-- Invested Bag -->
+            <div class="bg-slate-900/90 border border-slate-800/80 p-3.5 sm:p-4 rounded-2xl relative overflow-hidden shadow-sm">
+                <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 mb-0.5">Invested Capital</p>
+                <h2 id="investedDisplay" class="text-lg sm:text-2xl font-black text-slate-200">$0.00</h2>
+                <p id="positionsCount" class="text-[10px] sm:text-xs text-slate-500 mt-0.5 font-medium">0 active positions</p>
+            </div>
+
+            <!-- Total Profit / Loss -->
+            <div class="bg-slate-900/90 border border-slate-800/80 p-3.5 sm:p-4 rounded-2xl relative overflow-hidden shadow-sm">
+                <p class="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400 mb-0.5">Total Return</p>
+                <h2 id="profitDisplay" class="text-lg sm:text-2xl font-black text-slate-200">$0.00</h2>
+                <span id="pnlTag" class="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 mt-0.5 inline-block uppercase">NEUTRAL</span>
+            </div>
+        </div>
+
+        <!-- Main Workspace Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+
+            <!-- Column 1: Market Asset Selector -->
+            <div id="section-markets" class="mobile-section bg-slate-900/90 border border-slate-800/80 rounded-2xl p-3.5 sm:p-4 flex flex-col h-[520px] sm:h-[620px] shadow-sm">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-800 mb-3">
+                    <div class="flex items-center space-x-2">
+                        <i data-lucide="bar-chart-2" class="w-4 h-4 text-emerald-400"></i>
+                        <h3 class="font-bold text-sm sm:text-base text-slate-100">Market Watchlist</h3>
+                    </div>
+                    <span id="livePulse" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> LIVE FEEDS
+                    </span>
+                </div>
+
+                <!-- Search Input -->
+                <div class="relative mb-2.5">
+                    <i data-lucide="search" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"></i>
+                    <input type="text" id="searchInput" oninput="renderAssetList()" placeholder="Search 32 assets (Stocks, BTC, ETH)..." 
+                        class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs font-medium text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500">
+                </div>
+
+                <!-- Asset Filter Tabs -->
+                <div class="flex gap-1 p-1 bg-slate-950 rounded-xl mb-3 text-xs font-semibold">
+                    <button onclick="triggerHaptic(); setFilter('all');" id="filter-all" class="flex-1 py-1.5 rounded-lg bg-slate-800 text-white transition">All (32)</button>
+                    <button onclick="triggerHaptic(); setFilter('crypto');" id="filter-crypto" class="flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Crypto (2)</button>
+                    <button onclick="triggerHaptic(); setFilter('stock');" id="filter-stock" class="flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white transition">Stocks (30)</button>
+                </div>
+
+                <!-- Asset List -->
+                <div id="assetList" class="space-y-2 overflow-y-auto pr-1 flex-1 custom-scrollbar">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Column 2 & 3: Trading Terminal & Chart -->
+            <div class="lg:col-span-2 space-y-4 sm:space-y-6">
+
+                <!-- Active Asset Trading Box -->
+                <div id="section-terminal" class="mobile-section bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-sm">
+                    <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-800">
+                        <div class="flex items-center space-x-3">
+                            <div id="selectedAssetIcon" class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-slate-800 text-emerald-400 flex items-center justify-center font-bold text-lg sm:text-xl border border-slate-700/60">
+                                ₿
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-1.5">
+                                    <h2 id="selectedAssetName" class="text-lg sm:text-xl font-bold text-white">Bitcoin</h2>
+                                    <span id="selectedAssetSymbol" class="text-[10px] sm:text-xs font-semibold px-2 py-0.5 bg-slate-800 text-slate-300 rounded-md">BTC</span>
+                                </div>
+                                <p id="selectedAssetType" class="text-[11px] text-slate-400">Cryptocurrency • Real-time Data</p>
+                            </div>
+                        </div>
+
+                        <div class="text-right">
+                            <div id="selectedAssetPrice" class="text-xl sm:text-3xl font-black text-white">$68,500.00</div>
+                            <div id="selectedAssetChange" class="text-xs font-bold text-emerald-400 flex items-center justify-end gap-1">
+                                <i data-lucide="trending-up" class="w-3.5 h-3.5"></i>
+                                <span>+4.25% today</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Price Chart -->
+                    <div class="my-3 sm:my-4 h-48 sm:h-56 w-full bg-slate-950/80 rounded-xl p-2 border border-slate-800/80 relative">
+                        <canvas id="assetChart"></canvas>
+                    </div>
+
+                    <!-- Trading Control Form -->
+                    <div class="bg-slate-950 p-3.5 sm:p-4 rounded-xl border border-slate-800 space-y-3">
+                        <div class="flex items-center justify-between text-xs font-semibold text-slate-400">
+                            <span>Order Amount (USD)</span>
+                            <span>Cash: <strong id="tradeAvailableCash" class="text-emerald-400">$100,000.00</strong></span>
+                        </div>
+
+                        <!-- Amount Input & Quick Percentages -->
+                        <div class="space-y-2">
+                            <div class="relative">
+                                <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">$</span>
+                                <input type="number" id="tradeAmountInput" placeholder="Enter dollar amount (e.g. 5000)" 
+                                    oninput="updateTradeCalculations()"
+                                    class="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-8 pr-4 py-3 text-white font-bold text-base sm:text-lg focus:outline-none focus:border-emerald-500">
+                            </div>
+
+                            <!-- Quick % Buttons -->
+                            <div class="grid grid-cols-5 gap-1.5 text-xs font-semibold">
+                                <button onclick="triggerHaptic(); setTradePercent(0.10);" class="py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-800 transition">10%</button>
+                                <button onclick="triggerHaptic(); setTradePercent(0.25);" class="py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-800 transition">25%</button>
+                                <button onclick="triggerHaptic(); setTradePercent(0.50);" class="py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-800 transition">50%</button>
+                                <button onclick="triggerHaptic(); setTradePercent(0.75);" class="py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded-lg border border-slate-800 transition">75%</button>
+                                <button onclick="triggerHaptic(); setTradePercent(1.00);" class="py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 rounded-lg font-bold transition">100%</button>
+                            </div>
+                        </div>
+
+                        <!-- Shares / Token Estimation -->
+                        <div class="flex items-center justify-between text-xs text-slate-400 font-medium px-1">
+                            <span>Estimated Quantity:</span>
+                            <span id="estimatedShares" class="text-white font-bold text-xs sm:text-sm">0.0000 BTC</span>
+                        </div>
+
+                        <!-- Action Buttons: BUY vs SELL -->
+                        <div class="grid grid-cols-2 gap-2.5 pt-1">
+                            <button onclick="triggerHaptic(); executeTrade('BUY');" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-sm sm:text-base py-3.5 rounded-xl shadow-sm active:scale-95 transition flex items-center justify-center gap-1.5">
+                                <i data-lucide="arrow-up-right" class="w-5 h-5"></i>
+                                <span>Buy Asset</span>
+                            </button>
+
+                            <button onclick="triggerHaptic(); executeTrade('SELL');" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm sm:text-base py-3.5 rounded-xl shadow-sm active:scale-95 transition flex items-center justify-center gap-1.5">
+                                <i data-lucide="arrow-down-right" class="w-5 h-5"></i>
+                                <span>Sell Asset</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Portfolio Holdings Table -->
+                <div id="section-portfolio" class="mobile-section bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-sm">
+                    <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-3">
+                        <div class="flex items-center space-x-2">
+                            <i data-lucide="pie-chart" class="w-4 h-4 text-emerald-400"></i>
+                            <h3 class="font-bold text-sm sm:text-base text-slate-100">Portfolio Holdings</h3>
+                        </div>
+                        <span id="holdingBadge" class="text-xs font-semibold text-slate-400">0 Positions</span>
+                    </div>
+
+                    <div id="holdingsList" class="space-y-2.5 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                        <!-- Populated dynamically -->
+                    </div>
+                </div>
+
+                <!-- Transaction History Log -->
+                <div id="section-history" class="mobile-section bg-slate-900/90 border border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-sm">
+                    <div class="flex items-center space-x-2 pb-3 border-b border-slate-800 mb-3">
+                        <i data-lucide="clock" class="w-4 h-4 text-slate-400"></i>
+                        <h3 class="font-bold text-sm sm:text-base text-slate-100">Order History</h3>
+                    </div>
+                    <div id="tradeLogList" class="space-y-2 max-h-44 overflow-y-auto custom-scrollbar pr-1 text-xs font-mono">
+                        <div class="text-slate-500 italic text-center py-4">No transactions recorded yet.</div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Custom Reset Modal -->
+    <div id="resetModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl">
+            <div class="flex items-center space-x-3 text-amber-400">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                <h3 class="font-bold text-base text-white">Reset Portfolio?</h3>
+            </div>
+            <p class="text-xs text-slate-300 font-medium leading-relaxed">Are you sure you want to reset your portfolio and balance back to the starting $100,000 cash balance?</p>
+            <div class="grid grid-cols-2 gap-3 pt-2">
+                <button onclick="closeResetModal()" class="py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition">Cancel</button>
+                <button onclick="confirmReset()" class="py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs transition">Confirm Reset</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ALWAYS-VISIBLE FIXED BOTTOM BAR WITH RESET BUTTON -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-800/80 backdrop-blur-lg z-40 px-3 py-2">
+        <div class="max-w-7xl mx-auto flex items-center justify-between gap-2">
+            <!-- Mobile/Desktop Navigation Tabs -->
+            <div class="grid grid-cols-4 gap-1 text-center text-[10px] font-bold flex-1 max-w-md">
+                <button onclick="triggerHaptic(); switchMobileTab('markets');" id="mob-tab-markets" class="py-1.5 rounded-xl text-emerald-400 bg-slate-800 flex flex-col items-center gap-1">
+                    <i data-lucide="bar-chart-2" class="w-4 h-4"></i>
+                    <span>Markets</span>
+                </button>
+                <button onclick="triggerHaptic(); switchMobileTab('terminal');" id="mob-tab-terminal" class="py-1.5 rounded-xl text-slate-400 flex flex-col items-center gap-1">
+                    <i data-lucide="line-chart" class="w-4 h-4"></i>
+                    <span>Trade</span>
+                </button>
+                <button onclick="triggerHaptic(); switchMobileTab('portfolio');" id="mob-tab-portfolio" class="py-1.5 rounded-xl text-slate-400 flex flex-col items-center gap-1">
+                    <i data-lucide="pie-chart" class="w-4 h-4"></i>
+                    <span>Portfolio</span>
+                </button>
+                <button onclick="triggerHaptic(); switchMobileTab('history');" id="mob-tab-history" class="py-1.5 rounded-xl text-slate-400 flex flex-col items-center gap-1">
+                    <i data-lucide="clock" class="w-4 h-4"></i>
+                    <span>History</span>
+                </button>
+            </div>
+
+            <!-- PINNED NO-SCROLL RESET BUTTON AT THE VERY BOTTOM -->
+            <button onclick="triggerHaptic(); openResetModal();" class="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 active:scale-95 shadow-sm whitespace-nowrap">
+                <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                <span class="hidden sm:inline">Reset Account</span>
+                <span class="sm:hidden">Reset</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Notification Toast Modal -->
+    <div id="toast" class="fixed bottom-20 lg:bottom-16 right-4 left-4 sm:left-auto sm:right-6 transform translate-y-32 opacity-0 transition-all duration-300 z-50 bg-slate-800 border border-slate-700 text-white px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-3 pointer-events-none">
+        <div id="toastIcon" class="p-2 rounded-xl bg-emerald-500/20 text-emerald-400">
+            <i data-lucide="check-circle" class="w-5 h-5"></i>
+        </div>
+        <div>
+            <h4 id="toastTitle" class="font-bold text-xs sm:text-sm">Order Executed</h4>
+            <p id="toastMessage" class="text-[11px] sm:text-xs text-slate-300 font-medium">Bought 0.5 BTC for $34,250</p>
+        </div>
+    </div>
+
+    <!-- JavaScript Engine -->
+    <script>
+        // --- Mobile Touch Haptics ---
+        function triggerHaptic() {
+            if (navigator.vibrate) {
+                navigator.vibrate(15);
+            }
+        }
+
+        // --- Waffle Menu Dropdown Toggle ---
+        function toggleWaffleMenu() {
+            const waffle = document.getElementById('waffleMenu');
+            waffle.classList.toggle('hidden');
+        }
+
+        // Close Waffle Menu when clicking outside
+        document.addEventListener('click', function(e) {
+            const waffleBtn = document.getElementById('waffleBtn');
+            const waffleMenu = document.getElementById('waffleMenu');
+            if (waffleBtn && waffleMenu && !waffleBtn.contains(e.target) && !waffleMenu.contains(e.target)) {
+                waffleMenu.classList.add('hidden');
+            }
+        });
+
+        // --- Web Audio Background Focus Synthesizer ---
+        class FocusAudioEngine {
+            constructor() {
+                this.ctx = null;
+                this.isPlaying = false;
+                this.currentTrack = 'lofi';
+                this.volume = 0.20;
+                this.step = 0;
+                this.timer = null;
+                this.masterGain = null;
+            }
+
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                    this.masterGain = this.ctx.createGain();
+                    this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+                    this.masterGain.connect(this.ctx.destination);
+                }
+            }
+
+            setVolume(val) {
+                this.volume = parseFloat(val);
+                if (this.masterGain && this.ctx) {
+                    this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+                }
+            }
+
+            toggle() {
+                this.init();
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+
+                if (this.isPlaying) {
+                    this.stop();
+                } else {
+                    this.start();
+                }
+                return this.isPlaying;
+            }
+
+            start() {
+                this.isPlaying = true;
+                this.step = 0;
+                this.scheduleNextBeat();
+                const statusTag = document.getElementById('bgmStatusTag');
+                if (statusTag) {
+                    statusTag.textContent = 'ACTIVE';
+                    statusTag.className = 'text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-400 border border-emerald-800/50';
+                }
+                const btnText = document.getElementById('bgmBtnText');
+                if (btnText) btnText.textContent = 'Pause';
+            }
+
+            stop() {
+                this.isPlaying = false;
+                if (this.timer) clearTimeout(this.timer);
+                const statusTag = document.getElementById('bgmStatusTag');
+                if (statusTag) {
+                    statusTag.textContent = 'OFF';
+                    statusTag.className = 'text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-800 text-slate-400';
+                }
+                const btnText = document.getElementById('bgmBtnText');
+                if (btnText) btnText.textContent = 'Play Audio';
+            }
+
+            changeTrack(track) {
+                this.currentTrack = track;
+                this.step = 0;
+                const labels = {
+                    'lofi': 'Track: Chill Lo-Fi Focus',
+                    'synthwave': 'Track: Synthwave Ambient',
+                    'phonk': 'Track: Deep Focus Electronic'
+                };
+                const label = document.getElementById('currentTrackLabel');
+                if (label) label.textContent = labels[track] || 'Focus Track';
+            }
+
+            playNote(freq, type = 'sine', duration = 0.4, gainVal = 0.1) {
+                if (!this.ctx || !this.isPlaying) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const noteGain = this.ctx.createGain();
+
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, now);
+
+                noteGain.gain.setValueAtTime(gainVal, now);
+                noteGain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+                osc.connect(noteGain);
+                noteGain.connect(this.masterGain);
+
+                osc.start(now);
+                osc.stop(now + duration);
+            }
+
+            playKick() {
+                if (!this.ctx || !this.isPlaying) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
+                osc.frequency.setValueAtTime(120, now);
+                osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+
+                osc.connect(gain);
+                gain.connect(this.masterGain);
+
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+
+            playHiHat() {
+                if (!this.ctx || !this.isPlaying) return;
+                const now = this.ctx.currentTime;
+                const bufferSize = this.ctx.sampleRate * 0.05;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 7000;
+
+                const gain = this.ctx.createGain();
+                gain.gain.setValueAtTime(0.06, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.masterGain);
+
+                noise.start(now);
+            }
+
+            scheduleNextBeat() {
+                if (!this.isPlaying) return;
+
+                let interval = 280;
+
+                if (this.currentTrack === 'lofi') {
+                    interval = 320;
+                    const lofiChords = [
+                        [220, 261.63, 329.63, 392.00],
+                        [174.61, 220, 261.63, 329.63],
+                        [130.81, 164.81, 196.00, 246.94],
+                        [196.00, 246.94, 293.66, 349.23]
+                    ];
+
+                    const chordIdx = Math.floor(this.step / 4) % lofiChords.length;
+                    const chord = lofiChords[chordIdx];
+
+                    if (this.step % 2 === 0) {
+                        const note = chord[this.step % chord.length];
+                        this.playNote(note, 'sine', 0.6, 0.07);
+                    }
+
+                    if (this.step % 4 === 0) this.playKick();
+                    if (this.step % 2 === 1) this.playHiHat();
+
+                } else if (this.currentTrack === 'synthwave') {
+                    interval = 200;
+                    const bassScale = [110, 110, 130.81, 110, 146.83, 110, 164.81, 123.47];
+                    const bassNote = bassScale[this.step % bassScale.length];
+
+                    this.playNote(bassNote, 'sawtooth', 0.15, 0.05);
+
+                    if (this.step % 4 === 0) this.playKick();
+                    if (this.step % 2 === 0) this.playHiHat();
+
+                } else if (this.currentTrack === 'phonk') {
+                    interval = 240;
+                    const scale = [130.81, 130.81, 155.56, 130.81, 174.61, 130.81];
+                    const note = scale[this.step % scale.length];
+
+                    this.playNote(note, 'square', 0.2, 0.05);
+
+                    if (this.step % 4 === 0) this.playKick();
+                    if (this.step % 2 === 1) this.playHiHat();
+                }
+
+                this.step = (this.step + 1) % 16;
+                this.timer = setTimeout(() => this.scheduleNextBeat(), interval);
+            }
+        }
+
+        const bgm = new FocusAudioEngine();
+
+        function toggleBgm() {
+            bgm.toggle();
+        }
+
+        function setBgmVolume(val) {
+            bgm.setVolume(val);
+        }
+
+        function changeTrack(val) {
+            bgm.changeTrack(val);
+        }
+
+        // --- Sound Effects Synthesizer ---
+        let soundEnabled = true;
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                audioCtx = new AudioContext();
+            }
+        }
+
+        function playSound(type) {
+            if (!soundEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'buy') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(440, now);
+                osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.start(now);
+                osc.stop(now + 0.15);
+            } else if (type === 'sell') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.exponentialRampToValueAtTime(330, now + 0.2);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            } else if (type === 'cash') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.08);
+                osc.frequency.setValueAtTime(783.99, now + 0.16);
+                osc.frequency.setValueAtTime(1046.50, now + 0.24);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            }
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            showToast(soundEnabled ? 'Audio Effects On' : 'Audio Effects Muted', 'Sound preference saved');
+        }
+
+        // --- App State & Data ---
+        const INITIAL_CASH = 100000;
+        let state = {
+            cash: INITIAL_CASH,
+            holdings: {},
+            selectedSymbol: 'BTC',
+            currentFilter: 'all',
+            history: [],
+            initialNetWorth: INITIAL_CASH
+        };
+
+        // Assets database: EXACTLY 2 CRYPTO (BTC, ETH) + TOP 30 STOCKS
+        const assets = {
+            // CRYPTO (2)
+            'BTC': { symbol: 'BTC', name: 'Bitcoin', type: 'crypto', price: 68500.00, change24h: 3.85, icon: '₿', history: [65000, 66200, 65800, 67100, 68500] },
+            'ETH': { symbol: 'ETH', name: 'Ethereum', type: 'crypto', price: 3520.00, change24h: 2.15, icon: 'Ξ', history: [3400, 3420, 3480, 3450, 3520] },
+
+            // TOP 30 STOCKS
+            'NVDA': { symbol: 'NVDA', name: 'NVIDIA Corp', type: 'stock', price: 128.40, change24h: 5.60, icon: '📈', history: [120, 122, 124, 126, 128.40] },
+            'TSLA': { symbol: 'TSLA', name: 'Tesla Inc', type: 'stock', price: 248.20, change24h: -2.30, icon: '⚡', history: [255, 252, 250, 246, 248.20] },
+            'AAPL': { symbol: 'AAPL', name: 'Apple Inc', type: 'stock', price: 224.30, change24h: 1.10, icon: '🍎', history: [220, 221, 223, 222, 224.30] },
+            'MSFT': { symbol: 'MSFT', name: 'Microsoft', type: 'stock', price: 440.50, change24h: 1.40, icon: '🪟', history: [435, 438, 436, 439, 440.50] },
+            'AMZN': { symbol: 'AMZN', name: 'Amazon.com', type: 'stock', price: 186.75, change24h: 0.95, icon: '📦', history: [184, 185, 184.5, 186, 186.75] },
+            'GOOGL': { symbol: 'GOOGL', name: 'Alphabet Inc', type: 'stock', price: 175.20, change24h: -0.80, icon: '🔍', history: [178, 177, 176, 174, 175.20] },
+            'META': { symbol: 'META', name: 'Meta Platforms', type: 'stock', price: 520.10, change24h: 3.20, icon: '♾️', history: [505, 510, 512, 518, 520.10] },
+            'NFLX': { symbol: 'NFLX', name: 'Netflix', type: 'stock', price: 680.40, change24h: 2.10, icon: '🎬', history: [670, 672, 675, 678, 680.40] },
+            'AMD': { symbol: 'AMD', name: 'Advanced Micro Devices', type: 'stock', price: 155.80, change24h: 4.30, icon: '💻', history: [148, 150, 152, 154, 155.80] },
+            'PLTR': { symbol: 'PLTR', name: 'Palantir Tech', type: 'stock', price: 28.50, change24h: 6.80, icon: '🔮', history: [26, 26.5, 27, 28, 28.50] },
+            'COIN': { symbol: 'COIN', name: 'Coinbase Global', type: 'stock', price: 220.60, change24h: 5.10, icon: '🪙', history: [210, 212, 215, 218, 220.60] },
+            'SPY': { symbol: 'SPY', name: 'S&P 500 ETF', type: 'stock', price: 555.10, change24h: 0.45, icon: '📊', history: [550, 552, 553, 554, 555.10] },
+            'QQQ': { symbol: 'QQQ', name: 'Invesco QQQ ETF', type: 'stock', price: 480.20, change24h: 0.85, icon: '🚀', history: [475, 476, 478, 479, 480.20] },
+            'UBER': { symbol: 'UBER', name: 'Uber Tech', type: 'stock', price: 72.40, change24h: 1.85, icon: '🚗', history: [70, 71, 70.5, 71.8, 72.40] },
+            'PYPL': { symbol: 'PYPL', name: 'PayPal Holdings', type: 'stock', price: 64.80, change24h: -1.10, icon: '💳', history: [66, 65.5, 65, 64.2, 64.80] },
+            'DIS': { symbol: 'DIS', name: 'Walt Disney Co', type: 'stock', price: 95.30, change24h: 0.60, icon: '🏰', history: [94, 94.5, 95, 94.8, 95.30] },
+            'BABA': { symbol: 'BABA', name: 'Alibaba Group', type: 'stock', price: 78.30, change24h: -2.10, icon: '🛍️', history: [80, 79.5, 79, 78, 78.30] },
+            'NKE': { symbol: 'NKE', name: 'Nike Inc', type: 'stock', price: 75.90, change24h: 1.05, icon: '👟', history: [74.5, 75, 75.2, 75.5, 75.90] },
+            'JPM': { symbol: 'JPM', name: 'JPMorgan Chase', type: 'stock', price: 212.40, change24h: 0.30, icon: '🏦', history: [210, 211, 211.5, 212, 212.40] },
+            'V': { symbol: 'V', name: 'Visa Inc', type: 'stock', price: 272.10, change24h: 0.50, icon: '💳', history: [270, 271, 270.8, 271.5, 272.10] },
+            'WMT': { symbol: 'WMT', name: 'Walmart Inc', type: 'stock', price: 68.50, change24h: 0.20, icon: '🛒', history: [68, 68.1, 68.3, 68.4, 68.50] },
+            'COST': { symbol: 'COST', name: 'Costco Wholesale', type: 'stock', price: 845.20, change24h: 1.15, icon: '🌭', history: [835, 838, 840, 842, 845.20] },
+            'UNH': { symbol: 'UNH', name: 'UnitedHealth', type: 'stock', price: 560.10, change24h: -0.40, icon: '🏥', history: [563, 562, 561, 559, 560.10] },
+            'XOM': { symbol: 'XOM', name: 'Exxon Mobil', type: 'stock', price: 118.90, change24h: -0.90, icon: '⛽', history: [120, 119.5, 119, 118.5, 118.90] },
+            'JNJ': { symbol: 'JNJ', name: 'Johnson & Johnson', type: 'stock', price: 152.30, change24h: 0.10, icon: '💊', history: [152, 152.1, 152.2, 152.15, 152.30] },
+            'BAC': { symbol: 'BAC', name: 'Bank of America', type: 'stock', price: 39.40, change24h: 0.80, icon: '🏛️', history: [38.8, 39, 39.1, 39.2, 39.40] },
+            'HD': { symbol: 'HD', name: 'Home Depot', type: 'stock', price: 365.80, change24h: 1.40, icon: '🔨', history: [360, 362, 363, 364, 365.80] },
+            'INTC': { symbol: 'INTC', name: 'Intel Corp', type: 'stock', price: 21.50, change24h: -3.50, icon: '🔌', history: [22.5, 22.2, 22, 21.8, 21.50] },
+            'SBUX': { symbol: 'SBUX', name: 'Starbucks Corp', type: 'stock', price: 76.20, change24h: 0.40, icon: '☕', history: [75.5, 75.8, 76, 76.1, 76.20] },
+            'HOOD': { symbol: 'HOOD', name: 'Robinhood Markets', type: 'stock', price: 22.40, change24h: 7.20, icon: '🏹', history: [20.5, 21, 21.5, 22, 22.40] }
+        };
+
+        let chartInstance = null;
+
+        // --- Mobile Tab Switching ---
+        function switchMobileTab(tab) {
+            if (window.innerWidth >= 1024) return;
+
+            const sections = ['markets', 'terminal', 'portfolio', 'history'];
+            sections.forEach(s => {
+                const el = document.getElementById(`section-${s}`);
+                const btn = document.getElementById(`mob-tab-${s}`);
+                if (s === tab) {
+                    if (el) el.classList.remove('hidden');
+                    if (btn) btn.className = "py-1.5 rounded-xl text-emerald-400 bg-slate-800 flex flex-col items-center gap-1";
+                } else {
+                    if (el) el.classList.add('hidden');
+                    if (btn) btn.className = "py-1.5 rounded-xl text-slate-400 flex flex-col items-center gap-1";
+                }
+            });
+        }
+
+        // --- Local Storage Management ---
+        function loadState() {
+            const saved = localStorage.getItem('apextrade_paper_state_v5');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    state.cash = parsed.cash ?? INITIAL_CASH;
+                    state.holdings = parsed.holdings ?? {};
+                    state.history = parsed.history ?? [];
+                    state.initialNetWorth = parsed.initialNetWorth ?? INITIAL_CASH;
+                } catch (e) {
+                    console.error("Failed to parse state", e);
+                }
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem('apextrade_paper_state_v5', JSON.stringify({
+                cash: state.cash,
+                holdings: state.holdings,
+                history: state.history,
+                initialNetWorth: state.initialNetWorth
+            }));
+        }
+
+        // --- Live API Sync (Only Bitcoin & Ethereum) ---
+        async function fetchLiveCryptoPrices() {
+            try {
+                const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum&vs_currencies=usd&include_24hr_change=true');
+                if (!res.ok) return;
+                const data = await res.json();
+
+                if (data.bitcoin) updateAssetPrice('BTC', data.bitcoin.usd, data.bitcoin.usd_24h_change);
+                if (data.ethereum) updateAssetPrice('ETH', data.ethereum.usd, data.ethereum.usd_24h_change);
+
+            } catch (e) {
+                // Silently fallback to ticks
+            }
+        }
+
+        function updateAssetPrice(symbol, newPrice, change24h) {
+            const asset = assets[symbol];
+            if (!asset) return;
+
+            asset.price = newPrice;
+            if (change24h !== undefined) asset.change24h = change24h;
+
+            asset.history.push(newPrice);
+            if (asset.history.length > 20) asset.history.shift();
+
+            renderAssetList();
+            renderHoldings();
+            updateSummaryCards();
+
+            if (state.selectedSymbol === symbol) {
+                renderSelectedAssetTerminal();
+            }
+        }
+
+        function simulateMarketTick() {
+            Object.keys(assets).forEach(sym => {
+                if (Math.random() < 0.35) {
+                    const asset = assets[sym];
+                    const pctChange = (Math.random() - 0.49) * 0.005;
+                    const oldPrice = asset.price;
+                    asset.price = Math.max(0.0001, asset.price * (1 + pctChange));
+                    asset.history.push(asset.price);
+                    if (asset.history.length > 20) asset.history.shift();
+
+                    if (state.selectedSymbol === sym) {
+                        const priceEl = document.getElementById('selectedAssetPrice');
+                        if (priceEl) {
+                            priceEl.classList.remove('animate-flash-green', 'animate-flash-red');
+                            void priceEl.offsetWidth;
+                            priceEl.classList.add(asset.price >= oldPrice ? 'animate-flash-green' : 'animate-flash-red');
+                        }
+                    }
+                }
+            });
+
+            renderAssetList();
+            renderHoldings();
+            updateSummaryCards();
+            if (assets[state.selectedSymbol]) {
+                renderSelectedAssetTerminal(false);
+            }
+        }
+
+        // --- UI Formatters & Renderers ---
+
+        function formatCurrency(val) {
+            if (val >= 1000000000) return '$' + (val / 1000000000).toFixed(2) + 'B';
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+        }
+
+        function formatCryptoAmount(val) {
+            if (val < 0.01) return val.toFixed(6);
+            if (val < 1) return val.toFixed(4);
+            return val.toFixed(3);
+        }
+
+        function calculateNetWorth() {
+            let invested = 0;
+            Object.keys(state.holdings).forEach(sym => {
+                const h = state.holdings[sym];
+                if (h && h.amount > 0 && assets[sym]) {
+                    invested += h.amount * assets[sym].price;
+                }
+            });
+            return {
+                cash: state.cash,
+                invested: invested,
+                total: state.cash + invested
+            };
+        }
+
+        function updateSummaryCards() {
+            const nw = calculateNetWorth();
+            const totalProfit = nw.total - state.initialNetWorth;
+            const profitPct = ((nw.total - state.initialNetWorth) / state.initialNetWorth) * 100;
+
+            document.getElementById('netWorthDisplay').textContent = formatCurrency(nw.total);
+            document.getElementById('cashDisplay').textContent = formatCurrency(nw.cash);
+            document.getElementById('investedDisplay').textContent = formatCurrency(nw.invested);
+            document.getElementById('tradeAvailableCash').textContent = formatCurrency(nw.cash);
+
+            const nwChangeEl = document.getElementById('netWorthChange');
+            const isProfit = totalProfit >= 0;
+            nwChangeEl.className = `text-[11px] sm:text-xs font-bold flex items-center gap-1 mt-0.5 ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`;
+            nwChangeEl.innerHTML = `
+                <i data-lucide="${isProfit ? 'trending-up' : 'trending-down'}" class="w-3 h-3"></i>
+                <span>${isProfit ? '+' : ''}${formatCurrency(totalProfit)} (${profitPct.toFixed(2)}%)</span>
+            `;
+
+            const profitEl = document.getElementById('profitDisplay');
+            profitEl.textContent = `${isProfit ? '+' : ''}${formatCurrency(totalProfit)}`;
+            profitEl.className = `text-lg sm:text-2xl font-black ${isProfit ? 'text-emerald-400' : 'text-rose-400'}`;
+
+            const pnlTag = document.getElementById('pnlTag');
+            pnlTag.textContent = isProfit ? 'PROFITABLE' : 'UNREALIZED LOSS';
+            pnlTag.className = `text-[10px] font-extrabold px-1.5 py-0.5 rounded mt-0.5 inline-block ${isProfit ? 'bg-emerald-950 text-emerald-300 border border-emerald-800/40' : 'bg-rose-950 text-rose-300 border border-rose-800/40'}`;
+
+            const activePosCount = Object.values(state.holdings).filter(h => h && h.amount > 0).length;
+            document.getElementById('positionsCount').textContent = `${activePosCount} active position${activePosCount === 1 ? '' : 's'}`;
+
+            updateAuraBadge(profitPct, nw.total);
+            lucide.createIcons();
+        }
+
+        function updateAuraBadge(profitPct, totalNetWorth) {
+            const auraText = document.getElementById('auraText');
+            const auraTextMenu = document.getElementById('auraTextMenu');
+            let text = "Rank: Silver Tier";
+            let color = "text-slate-300 font-bold";
+
+            if (totalNetWorth > 1000000) {
+                text = "Rank: Diamond Tier 💎";
+                color = "text-amber-300 font-bold";
+            } else if (profitPct >= 50) {
+                text = "Rank: Platinum Tier";
+                color = "text-emerald-400 font-bold";
+            } else if (profitPct >= 10) {
+                text = "Rank: Gold Tier";
+                color = "text-teal-300 font-bold";
+            } else if (profitPct >= 0) {
+                text = "Rank: Silver Tier";
+                color = "text-slate-300 font-bold";
+            } else {
+                text = "Rank: Bronze Tier";
+                color = "text-rose-400 font-bold";
+            }
+
+            if (auraText) {
+                auraText.textContent = text;
+                auraText.className = color;
+            }
+            if (auraTextMenu) {
+                auraTextMenu.textContent = text;
+                auraTextMenu.className = `text-[11px] ${color}`;
+            }
+        }
+
+        function setFilter(filter) {
+            state.currentFilter = filter;
+            ['all', 'crypto', 'stock'].forEach(f => {
+                const btn = document.getElementById(`filter-${f}`);
+                if (f === filter) {
+                    btn.className = "flex-1 py-1.5 rounded-lg bg-slate-800 text-white font-bold transition shadow-sm";
+                } else {
+                    btn.className = "flex-1 py-1.5 rounded-lg text-slate-400 hover:text-white transition";
+                }
+            });
+            renderAssetList();
+        }
+
+        function renderAssetList() {
+            const container = document.getElementById('assetList');
+            const searchVal = (document.getElementById('searchInput')?.value || '').toLowerCase().trim();
+            container.innerHTML = '';
+
+            Object.keys(assets).forEach(sym => {
+                const asset = assets[sym];
+                if (state.currentFilter !== 'all' && asset.type !== state.currentFilter) return;
+
+                if (searchVal && !sym.toLowerCase().includes(searchVal) && !asset.name.toLowerCase().includes(searchVal)) {
+                    return;
+                }
+
+                const isSelected = state.selectedSymbol === sym;
+                const isPositive = asset.change24h >= 0;
+
+                const card = document.createElement('div');
+                card.onclick = () => {
+                    triggerHaptic();
+                    selectAsset(sym);
+                    if (window.innerWidth < 1024) switchMobileTab('terminal');
+                };
+
+                card.className = `p-2.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between active:scale-98 ${
+                    isSelected 
+                        ? 'bg-slate-800/90 border-emerald-500/80 shadow-md glow-emerald' 
+                        : 'bg-slate-950/60 border-slate-800/80 hover:bg-slate-850'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-base font-bold">
+                            ${asset.icon}
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-1">
+                                <span class="font-bold text-xs sm:text-sm text-white">${asset.symbol}</span>
+                                <span class="text-[9px] font-bold px-1 bg-slate-900 text-slate-400 rounded">${asset.type === 'crypto' ? 'CRYPTO' : 'STOCK'}</span>
+                            </div>
+                            <p class="text-[11px] text-slate-400 font-medium truncate max-w-[110px]">${asset.name}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold text-xs sm:text-sm text-white">${formatCurrency(asset.price)}</div>
+                        <div class="text-[11px] font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'} flex items-center justify-end gap-0.5">
+                            ${isPositive ? '▲' : '▼'} ${Math.abs(asset.change24h).toFixed(2)}%
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function selectAsset(sym) {
+            state.selectedSymbol = sym;
+            renderAssetList();
+            renderSelectedAssetTerminal(true);
+        }
+
+        function renderSelectedAssetTerminal(resetInput = false) {
+            const asset = assets[state.selectedSymbol];
+            if (!asset) return;
+
+            document.getElementById('selectedAssetName').textContent = asset.name;
+            document.getElementById('selectedAssetSymbol').textContent = asset.symbol;
+            document.getElementById('selectedAssetType').textContent = `${asset.type === 'crypto' ? 'Cryptocurrency' : 'US Stock'} • Real-Time`;
+            document.getElementById('selectedAssetIcon').textContent = asset.icon;
+            
+            const priceEl = document.getElementById('selectedAssetPrice');
+            priceEl.textContent = formatCurrency(asset.price);
+
+            const isPositive = asset.change24h >= 0;
+            const changeEl = document.getElementById('selectedAssetChange');
+            changeEl.className = `text-xs font-bold flex items-center justify-end gap-1 ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`;
+            changeEl.innerHTML = `
+                <i data-lucide="${isPositive ? 'trending-up' : 'trending-down'}" class="w-3.5 h-3.5"></i>
+                <span>${isPositive ? '+' : ''}${asset.change24h.toFixed(2)}% 24h</span>
+            `;
+
+            if (resetInput) {
+                document.getElementById('tradeAmountInput').value = '';
+            }
+
+            updateTradeCalculations();
+            renderChart(asset);
+            lucide.createIcons();
+        }
+
+        function renderChart(asset) {
+            const ctx = document.getElementById('assetChart').getContext('2d');
+            const labels = asset.history.map((_, i) => `T-${asset.history.length - i}`);
+            const isUp = asset.history[asset.history.length - 1] >= asset.history[0];
+            const strokeColor = isUp ? '#10b981' : '#f43f5e';
+            const fillColor = isUp ? 'rgba(16, 185, 129, 0.12)' : 'rgba(244, 63, 94, 0.12)';
+
+            if (chartInstance) {
+                chartInstance.destroy();
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: asset.history,
+                        borderColor: strokeColor,
+                        borderWidth: 2,
+                        pointRadius: 2,
+                        pointBackgroundColor: strokeColor,
+                        fill: true,
+                        backgroundColor: fillColor,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: true } },
+                    scales: {
+                        x: { display: false },
+                        y: { 
+                            grid: { color: 'rgba(255,255,255,0.04)' },
+                            ticks: { color: '#64748b', font: { size: 10, weight: '600' } }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateTradeCalculations() {
+            const inputVal = parseFloat(document.getElementById('tradeAmountInput').value) || 0;
+            const asset = assets[state.selectedSymbol];
+            if (!asset || asset.price === 0) return;
+
+            const shares = inputVal / asset.price;
+            document.getElementById('estimatedShares').textContent = `${formatCryptoAmount(shares)} ${asset.symbol}`;
+        }
+
+        function setTradePercent(pct) {
+            const amount = state.cash * pct;
+            document.getElementById('tradeAmountInput').value = amount.toFixed(2);
+            updateTradeCalculations();
+        }
+
+        // --- Trading Execution Engine ---
+
+        function executeTrade(type) {
+            const amountDollar = parseFloat(document.getElementById('tradeAmountInput').value);
+            const asset = assets[state.selectedSymbol];
+
+            if (!amountDollar || amountDollar <= 0) {
+                showToast('Invalid Amount', 'Please enter a valid dollar amount to proceed.', 'warning');
+                return;
+            }
+
+            if (type === 'BUY') {
+                if (amountDollar > state.cash) {
+                    showToast('Insufficient Capital', 'You do not have enough cash balance. Click "+$10K" to add funds.', 'danger');
+                    return;
+                }
+
+                const qty = amountDollar / asset.price;
+                state.cash -= amountDollar;
+
+                if (!state.holdings[asset.symbol]) {
+                    state.holdings[asset.symbol] = { amount: 0, totalCost: 0 };
+                }
+
+                state.holdings[asset.symbol].amount += qty;
+                state.holdings[asset.symbol].totalCost += amountDollar;
+
+                playSound('buy');
+                if (amountDollar >= state.cash * 0.9 && amountDollar > 10000) {
+                    confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
+                }
+
+                logTrade('BUY', asset.symbol, qty, asset.price, amountDollar);
+                showToast(`Bought ${asset.symbol}`, `Purchased $${amountDollar.toLocaleString()} of ${asset.name}.`);
+
+            } else if (type === 'SELL') {
+                const holding = state.holdings[asset.symbol];
+                if (!holding || holding.amount <= 0) {
+                    showToast('No Position', `You do not currently hold any ${asset.symbol} to sell.`, 'danger');
+                    return;
+                }
+
+                const currentVal = holding.amount * asset.price;
+                const sellVal = Math.min(amountDollar, currentVal);
+                const qtyToSell = sellVal / asset.price;
+
+                const frac = qtyToSell / holding.amount;
+                holding.totalCost -= (holding.totalCost * frac);
+                holding.amount -= qtyToSell;
+
+                if (holding.amount <= 0.000001) {
+                    delete state.holdings[asset.symbol];
+                }
+
+                state.cash += sellVal;
+
+                playSound('sell');
+                logTrade('SELL', asset.symbol, qtyToSell, asset.price, sellVal);
+                showToast(`Sold ${asset.symbol}`, `Closed ${formatCryptoAmount(qtyToSell)} ${asset.symbol} for $${sellVal.toLocaleString()}.`);
+            }
+
+            document.getElementById('tradeAmountInput').value = '';
+            saveState();
+            updateSummaryCards();
+            renderHoldings();
+            renderSelectedAssetTerminal(false);
+        }
+
+        function dumpPosition(sym) {
+            triggerHaptic();
+            const holding = state.holdings[sym];
+            const asset = assets[sym];
+            if (!holding || !asset) return;
+
+            const totalVal = holding.amount * asset.price;
+            state.cash += totalVal;
+
+            logTrade('SELL', sym, holding.amount, asset.price, totalVal);
+            playSound('sell');
+
+            delete state.holdings[sym];
+
+            saveState();
+            updateSummaryCards();
+            renderHoldings();
+            showToast(`Closed Position ${sym}`, `Liquidated position for ${formatCurrency(totalVal)}.`);
+        }
+
+        function renderHoldings() {
+            const container = document.getElementById('holdingsList');
+            container.innerHTML = '';
+
+            const keys = Object.keys(state.holdings).filter(s => state.holdings[s] && state.holdings[s].amount > 0.000001);
+            document.getElementById('holdingBadge').textContent = `${keys.length} Position${keys.length === 1 ? '' : 's'}`;
+
+            if (keys.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-6 text-slate-500 text-xs border border-dashed border-slate-800 rounded-xl">
+                        No active positions held. Select an asset to place a buy order.
+                    </div>
+                `;
+                return;
+            }
+
+            keys.forEach(sym => {
+                const holding = state.holdings[sym];
+                const asset = assets[sym];
+                if (!asset) return;
+
+                const currentVal = holding.amount * asset.price;
+                const avgCostPerUnit = holding.totalCost / holding.amount;
+                const profitDollar = currentVal - holding.totalCost;
+                const profitPct = holding.totalCost > 0 ? (profitDollar / holding.totalCost) * 100 : 0;
+                const isProfitable = profitDollar >= 0;
+
+                const card = document.createElement('div');
+                card.className = "p-3 bg-slate-950/80 border border-slate-800 rounded-xl flex items-center justify-between";
+
+                card.innerHTML = `
+                    <div class="flex items-center space-x-2.5">
+                        <div class="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center font-bold text-base">
+                            ${asset.icon}
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-bold text-xs text-white">${asset.symbol}</span>
+                                <span class="text-[10px] text-slate-400">${formatCryptoAmount(holding.amount)} units</span>
+                            </div>
+                            <p class="text-[10px] text-slate-500">Avg Cost: ${formatCurrency(avgCostPerUnit)}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-3">
+                        <div class="text-right">
+                            <div class="font-bold text-xs sm:text-sm text-white">${formatCurrency(currentVal)}</div>
+                            <div class="text-[10px] sm:text-xs font-bold ${isProfitable ? 'text-emerald-400' : 'text-rose-400'}">
+                                ${isProfitable ? '+' : ''}${formatCurrency(profitDollar)} (${profitPct.toFixed(2)}%)
+                            </div>
+                        </div>
+
+                        <button onclick="dumpPosition('${sym}')" class="px-2.5 py-1 bg-slate-800 hover:bg-rose-950 text-slate-300 hover:text-rose-300 border border-slate-700/60 rounded-lg text-[10px] font-bold transition active:scale-95">
+                            Close
+                        </button>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        // --- Simulated Cash Add ---
+
+        function printMoney(amount) {
+            state.cash += amount;
+            playSound('cash');
+            saveState();
+            updateSummaryCards();
+
+            confetti({
+                particleCount: 40,
+                spread: 60,
+                origin: { y: 0.2 }
+            });
+
+            showToast('Capital Added', `Added +${formatCurrency(amount)} simulated funds to balance.`);
+        }
+
+        // --- Order Logging & History ---
+
+        function logTrade(type, symbol, amount, price, total) {
+            const entry = {
+                type,
+                symbol,
+                amount,
+                price,
+                total,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            };
+            state.history.unshift(entry);
+            if (state.history.length > 30) state.history.pop();
+            renderTradeLog();
+        }
+
+        function renderTradeLog() {
+            const container = document.getElementById('tradeLogList');
+            if (state.history.length === 0) return;
+
+            container.innerHTML = '';
+            state.history.forEach(log => {
+                const item = document.createElement('div');
+                const isBuy = log.type === 'BUY';
+                item.className = "flex items-center justify-between p-2 rounded bg-slate-950/40 border border-slate-800/60 text-[11px]";
+                item.innerHTML = `
+                    <div class="flex items-center space-x-1.5">
+                        <span class="font-bold px-1.5 py-0.5 rounded text-[9px] ${isBuy ? 'bg-emerald-950 text-emerald-400 border border-emerald-800/50' : 'bg-rose-950 text-rose-400 border border-rose-800/50'}">
+                            ${log.type}
+                        </span>
+                        <span class="text-white font-bold">${log.symbol}</span>
+                        <span class="text-slate-500">${formatCryptoAmount(log.amount)} @ ${formatCurrency(log.price)}</span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-slate-300 font-bold">${formatCurrency(log.total)}</span>
+                    </div>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        // --- Notification Toast System ---
+
+        let toastTimer = null;
+        function showToast(title, message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastTitle = document.getElementById('toastTitle');
+            const toastMsg = document.getElementById('toastMessage');
+            const toastIcon = document.getElementById('toastIcon');
+
+            toastTitle.textContent = title;
+            toastMsg.textContent = message;
+
+            if (type === 'danger') {
+                toastIcon.className = "p-2 rounded-xl bg-rose-500/20 text-rose-400";
+            } else if (type === 'warning') {
+                toastIcon.className = "p-2 rounded-xl bg-amber-500/20 text-amber-400";
+            } else {
+                toastIcon.className = "p-2 rounded-xl bg-emerald-500/20 text-emerald-400";
+            }
+
+            toast.classList.remove('translate-y-32', 'opacity-0');
+            toast.classList.add('translate-y-0', 'opacity-100');
+
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.remove('translate-y-0', 'opacity-100');
+                toast.classList.add('translate-y-32', 'opacity-0');
+            }, 3000);
+        }
+
+        // --- Custom Reset Modal Logic ---
+
+        function openResetModal() {
+            document.getElementById('resetModal').classList.remove('hidden');
+        }
+
+        function closeResetModal() {
+            document.getElementById('resetModal').classList.add('hidden');
+        }
+
+        function confirmReset() {
+            closeResetModal();
+            state.cash = INITIAL_CASH;
+            state.holdings = {};
+            state.history = [];
+            state.initialNetWorth = INITIAL_CASH;
+            saveState();
+            updateSummaryCards();
+            renderHoldings();
+            renderSelectedAssetTerminal(true);
+            renderTradeLog();
+            showToast('Account Reset', 'Portfolio balance reset to initial $100,000 cash.');
+        }
+
+        // --- Initialization ---
+
+        window.onload = function() {
+            loadState();
+            renderAssetList();
+            renderSelectedAssetTerminal(true);
+            renderHoldings();
+            renderTradeLog();
+            updateSummaryCards();
+
+            if (window.innerWidth < 1024) {
+                switchMobileTab('markets');
+            }
+
+            fetchLiveCryptoPrices();
+
+            setInterval(fetchLiveCryptoPrices, 15000);
+            setInterval(simulateMarketTick, 2000);
+            
+            lucide.createIcons();
+        };
+
+        window.onresize = function() {
+            if (window.innerWidth >= 1024) {
+                document.querySelectorAll('.mobile-section').forEach(el => el.classList.remove('hidden'));
+            }
+        };
+    </script>
+</body>
+</html>
